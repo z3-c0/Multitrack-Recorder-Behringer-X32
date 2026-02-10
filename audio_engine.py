@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+import subprocess
+import time
+import os
+import signal
+from pathlib import Path
+from datetime import datetime
+
+class AudioEngine:
+    def __init__(
+            self,
+            device="hw:XUSB",
+            recordings_dir="recordings",
+            channels=16,
+            sample_rate=48000
+    ):
+        self.device = device
+        self.channels = channels
+        self.sample_rate = sample_rate
+
+        self.recordings_dir = Path(recordings_dir)
+        self.recordings_dir.mkdir(parents=True, exist_ok=True)
+
+        # playback
+        self.play_proc = None
+        self.play_file = None
+        self.play_start = None
+        self.play_offset = 0.0
+        self.duration = 0.0
+        self.paused = False
+
+        # recording
+        self.rec_proc = None
+        self.rec_file = None
+        self.rec_start = None
+
+    # ---------- helpers ----------
+
+    def is_x32_connected(self) -> bool:
+        try:
+            r = subprocess.run(
+                ["arecord", "-l"],
+                capture_output=True,
+                text=True
+            )
+            return "XUSB" in r.stdout
+        except FileNotFoundError:
+            return False
+
+    def _ffprobe_duration(self, file) -> float:
+        r = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(file)
+            ],
+            capture_output=True,
+            text=True
+        )
+        return float(r.stdout.strip() or 0)
+
+    def list_recordings(self):
+        return sorted(f.name for f in self.recordings_dir.glob("*.wav"))
+
+    # ---------- RECORD ----------
+
+    def start_record(self, filename=None):
+        if self.rec_proc:
+            raise RuntimeError("Recording already running")
+
+        if not self.is_x32_connected():
+            raise RuntimeError("X32 not connected")
+
+        if not filename:
+            filename = datetime.now().strftime("rec_%Y-%m-%d_%H-%M-%S.wav")
+        elif not filename.endswith(".wav"):
+            filename += ".wav"
+
+        path = self.recordings_dir / filename
+
+        cmd = [
+            "ffmpeg",
+            "-loglevel", "error",
+            "-f", "alsa",
+            "-ac", str(self.channels),
+            "-ar", str(self.sample_rate),
+            "-i", self.device,
+            "-c:a", "pcm_s24le",
+            str(path)
+        ]
+
+        self.rec_proc = subprocess.Popen(
+            cmd,
+            preexec_fn=os.setsid
+        )
+        self.rec_file = filename
+        self.rec_start = time.time()
+
+    def stop_record(self):
+        if not self.rec_proc:
+            return
+
+        os.killpg(os.getpgid(self.rec_proc.pid), signal.SIGTERM)
+        self.rec_proc.wait()
+
+        self.rec_proc = None
+        self.rec_file = None
+        self.rec_start = None
+
+    # ---------- PLAYBACK ----------
+
+    def play(self, filename, offset=0.0):
+        if self.rec_proc:
+            raise RuntimeError("Recording in progress")
+
+        path = self.recordings_dir / filename
+        if not path.exists():
+            raise FileNotFoundError(filename)
+
+        self.stop()
+
+        self.duration = self._ffprobe_duration(path)
+
+        cmd = [
+            "ffmpeg",
+            "-loglevel", "error",
+            "-ss", str(offset),
+            "-i", str(path),
+            "-ac", str(self.channels),
+            "-ar", str(self.sample_rate),
+            "-f", "alsa",
+            self.device
+        ]
+
+        self.play_proc = subprocess.Popen(cmd)
+        self.play_file = filename
+        self.play_start = time.time()
+        self.play_offset = offset
+        self.paused = False
+
+    def stop(self):
+        if not self.play_proc:
+            return
+
+        self.play_proc.terminate()
+        self.play_proc.wait()
+
+        self.play_proc = None
+        self.play_file = None
+        self.play_start = None
+        self.play_offset = 0.0
+        self.duration = 0.0
+        self.paused = False
+
+    def seek(self, seconds):
+        if not self.play_file:
+            return
+        self.play(self.play_file, offset=seconds)
+
+    def position(self):
+        if not self.play_proc:
+            return 0.0
+        return min(
+            self.play_offset + (time.time() - self.play_start),
+            self.duration
+        )
+
+    # ---------- FILE OPS ----------
+
+    def rename_file(self, old, new):
+        if self.rec_proc:
+            raise RuntimeError("Recording in progress")
+        if self.play_file == old:
+            raise RuntimeError("File is playing")
+
+        if not new.endswith(".wav"):
+            new += ".wav"
+
+        src = self.recordings_dir / old
+        dst = self.recordings_dir / new
+
+        if not src.exists():
+            raise FileNotFoundError(old)
+        if dst.exists():
+            raise RuntimeError("Target file exists")
+
+        src.rename(dst)
+
+    def delete_file(self, filename):
+        if self.rec_proc:
+            raise RuntimeError("Recording in progress")
+        if self.play_file == filename:
+            raise RuntimeError("File is playing")
+
+        path = self.recordings_dir / filename
+        if not path.exists():
+            raise FileNotFoundError(filename)
+
+        path.unlink()
+
+    # ---------- STATUS ----------
+
+    def status(self):
+        return {
+            "x32": self.is_x32_connected(),
+            "recording": self.rec_proc is not None,
+            "recording_file": self.rec_file,
+            "playing": self.play_proc is not None,
+            "file": self.play_file,
+            "position": self.position(),
+            "duration": self.duration,
+            "files": self.list_recordings()
+        }

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>X32 Recorder</title>
+
+    <style>
+        :root {
+            --bg: #0f1115;
+            --panel: #1a1d24;
+            --accent: #3fa9f5;
+            --danger: #ff4d4d;
+            --ok: #3fb950;
+            --text: #e6e6e6;
+            --muted: #9aa0a6;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .app {
+            max-width: 480px;
+            margin: auto;
+            padding: 16px;
+        }
+
+        /* ---------- HEADER ---------- */
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .header h1 {
+            font-size: 1.2rem;
+            margin: 0;
+        }
+
+        .status {
+            font-size: 0.9rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #333;
+        }
+
+        .status.ok {
+            background: rgba(63,185,80,.15);
+            color: var(--ok);
+        }
+
+        .status.bad {
+            background: rgba(255,77,77,.15);
+            color: var(--danger);
+        }
+
+        /* ---------- PANELS ---------- */
+
+        .panel {
+            background: var(--panel);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .panel h2 {
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+            color: var(--muted);
+        }
+
+        /* ---------- BUTTONS ---------- */
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: #2a2f3a;
+            color: var(--text);
+        }
+
+        button.primary { background: var(--accent); }
+        button.danger { background: var(--danger); }
+        button.secondary { background: #2a2f3a; }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button + button {
+            margin-top: 8px;
+        }
+
+        /* ---------- INPUTS ---------- */
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            background: #101319;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        /* ---------- PLAYER ---------- */
+
+        .slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .time {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        /* ---------- FILE ACTIONS ---------- */
+
+        .file-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .file-actions button {
+            flex: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- HEADER -->
+    <div class="header">
+        <h1>🎚 X32 Recorder</h1>
+        <div id="x32status" class="status">…</div>
+    </div>
+
+    <!-- RECORD -->
+    <div class="panel">
+        <h2>Recording</h2>
+        <input id="recName" placeholder="Recording name (optional)">
+        <button class="primary" onclick="recStart()">● Start recording</button>
+        <button class="secondary" onclick="recStop()">■ Stop recording</button>
+    </div>
+
+    <!-- PLAYBACK -->
+    <div class="panel">
+        <h2>Playback</h2>
+
+        <select id="files"></select>
+
+        <button class="primary" onclick="play()">▶ Play</button>
+        <button class="secondary" onclick="stop()">⏹ Stop</button>
+
+        <input
+                id="seek"
+                class="slider"
+                type="range"
+                min="0"
+                step="0.1"
+                value="0"
+        >
+
+        <div class="time">
+            <span id="pos">0:00</span>
+            <span id="dur">0:00</span>
+        </div>
+    </div>
+
+    <!-- FILE MANAGEMENT -->
+    <div class="panel">
+        <h2>Files</h2>
+
+        <input id="newName" placeholder="New filename">
+
+        <div class="file-actions">
+            <button onclick="renameFile()">✏ Rename</button>
+            <button class="danger" onclick="deleteFile()">🗑 Delete</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let dragging = false;
+
+    function fmt(sec){
+        sec = Math.floor(sec || 0);
+        return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0");
+    }
+
+    async function refresh(){
+        const r = await fetch("/status");
+        const s = await r.json();
+
+        const st = document.getElementById("x32status");
+        if (s.x32) {
+            st.textContent = "X32 connected";
+            st.className = "status ok";
+        } else {
+            st.textContent = "X32 NOT connected";
+            st.className = "status bad";
+        }
+
+        const sel = document.getElementById("files");
+        const cur = sel.value;
+        sel.innerHTML = "";
+        s.files.forEach(f=>{
+            let o = document.createElement("option");
+            o.value = o.text = f;
+            sel.add(o);
+        });
+        if (s.files.includes(cur)) sel.value = cur;
+
+        const seek = document.getElementById("seek");
+        seek.max = s.duration || 0;
+        if (!dragging) seek.value = s.position || 0;
+
+        document.getElementById("pos").textContent = fmt(s.position);
+        document.getElementById("dur").textContent = fmt(s.duration);
+    }
+
+    setInterval(refresh, 500);
+
+    document.getElementById("seek").addEventListener("pointerdown",()=>dragging=true);
+    document.getElementById("seek").addEventListener("pointerup",async e=>{
+        dragging=false;
+        await fetch("/play/seek",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({pos:e.target.value})
+        });
+    });
+
+    async function recStart(){
+        const s = await (await fetch("/status")).json();
+        if (!s.x32) {
+            alert("X32 is not connected");
+            return;
+        }
+        await fetch("/record/start",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({name:recName.value})
+        });
+    }
+
+    async function recStop(){
+        await fetch("/record/stop",{method:"POST"});
+    }
+
+    async function play(){
+        const s = await (await fetch("/status")).json();
+        if (s.recording) {
+            if (!confirm("Recording in progress. Stop it?")) return;
+            await recStop();
+        }
+        await fetch("/play/start",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({file:files.value})
+        });
+    }
+
+    async function stop(){
+        await fetch("/play/stop",{method:"POST"});
+    }
+
+    async function renameFile(){
+        if (!files.value || !newName.value) return;
+        await fetch("/file/rename",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({old:files.value,new:newName.value})
+        });
+        newName.value="";
+    }
+
+    async function deleteFile(){
+        if (!files.value) return;
+        if (!confirm("Delete "+files.value+"?")) return;
+        await fetch("/file/delete",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({file:files.value})
+        });
+    }
+</script>
+
+</body>
+</html>
