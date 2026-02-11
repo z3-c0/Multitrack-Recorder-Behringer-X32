@@ -3,306 +3,240 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>X32 Recorder</title>
+    <title>X32 Multitrack Recorder</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 
     <style>
-        :root {
-            --bg: #0f1115;
-            --panel: #1a1d24;
-            --accent: #3fa9f5;
-            --danger: #ff4d4d;
-            --ok: #3fb950;
-            --text: #e6e6e6;
-            --muted: #9aa0a6;
-        }
-
-        * {
-            box-sizing: border-box;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-        }
-
         body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--text);
+            background: #111;
+            color: #eee;
         }
 
-        .app {
-            max-width: 480px;
-            margin: auto;
-            padding: 16px;
-        }
-
-        /* ---------- HEADER ---------- */
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .header h1 {
-            font-size: 1.2rem;
-            margin: 0;
-        }
-
-        .status {
-            font-size: 0.9rem;
-            padding: 4px 10px;
-            border-radius: 999px;
-            background: #333;
-        }
-
-        .status.ok {
-            background: rgba(63,185,80,.15);
-            color: var(--ok);
-        }
-
-        .status.bad {
-            background: rgba(255,77,77,.15);
-            color: var(--danger);
-        }
-
-        /* ---------- PANELS ---------- */
-
-        .panel {
-            background: var(--panel);
-            border-radius: 14px;
-            padding: 14px;
-            margin-bottom: 14px;
-        }
-
-        .panel h2 {
-            margin: 0 0 10px 0;
-            font-size: 1rem;
-            color: var(--muted);
-        }
-
-        /* ---------- BUTTONS ---------- */
-
-        button {
-            width: 100%;
-            padding: 12px;
-            border-radius: 10px;
+        .card {
+            background: #1c1c1c;
             border: none;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            background: #2a2f3a;
-            color: var(--text);
+            border-radius: 16px;
         }
 
-        button.primary { background: var(--accent); }
-        button.danger { background: var(--danger); }
-        button.secondary { background: #2a2f3a; }
-
-        button:active {
-            transform: scale(0.98);
+        .btn-lg {
+            border-radius: 12px;
         }
 
-        button + button {
-            margin-top: 8px;
+        .rec-indicator {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: red;
+            display: inline-block;
+            margin-right: 6px;
+            animation: blink 1s infinite;
         }
 
-        /* ---------- INPUTS ---------- */
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.1; }
+            100% { opacity: 1; }
+        }
 
-        input, select {
-            width: 100%;
+        .bottom-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
             padding: 10px;
-            border-radius: 8px;
-            border: none;
-            background: #101319;
-            color: var(--text);
-            margin-bottom: 8px;
+            border-top: 1px solid #333;
         }
 
-        /* ---------- PLAYER ---------- */
+        .content-padding {
+            padding-bottom: 140px;
+        }
 
-        .slider {
+        .range-slider {
             width: 100%;
-            margin: 10px 0;
         }
 
-        .time {
-            display: flex;
-            justify-content: space-between;
+        .status-badge {
             font-size: 0.85rem;
-            color: var(--muted);
-        }
-
-        /* ---------- FILE ACTIONS ---------- */
-
-        .file-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .file-actions button {
-            flex: 1;
         }
     </style>
 </head>
 
 <body>
 
-<div class="app">
+<div class="container py-3 content-padding">
 
-    <!-- HEADER -->
-    <div class="header">
-        <h1>🎚 X32 Recorder</h1>
-        <div id="x32status" class="status">…</div>
-    </div>
+    <h4 class="text-center mb-3">X32 Multitrack Recorder</h4>
 
-    <!-- RECORD -->
-    <div class="panel">
-        <h2>Recording</h2>
-        <input id="recName" placeholder="Recording name (optional)">
-        <button class="primary" onclick="recStart()">● Start recording</button>
-        <button class="secondary" onclick="recStop()">■ Stop recording</button>
-    </div>
+    <!-- STATUS CARD -->
+    <div class="card p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center">
 
-    <!-- PLAYBACK -->
-    <div class="panel">
-        <h2>Playback</h2>
+            <div>
+                <strong>Status:</strong>
+                <span id="statusText">Loading...</span>
+            </div>
 
-        <select id="files"></select>
+            <div>
+                <span id="x32Badge" class="badge bg-secondary status-badge">Checking...</span>
+            </div>
 
-        <button class="primary" onclick="play()">▶ Play</button>
-        <button class="secondary" onclick="stop()">⏹ Stop</button>
+        </div>
 
-        <input
-                id="seek"
-                class="slider"
-                type="range"
-                min="0"
-                step="0.1"
-                value="0"
-        >
+        <div id="recIndicatorContainer" class="mt-2 d-none">
+            <span class="rec-indicator"></span>
+            <strong>RECORDING</strong>
+        </div>
 
-        <div class="time">
-            <span id="pos">0:00</span>
-            <span id="dur">0:00</span>
+        <div class="mt-2">
+            <small>Time: <span id="time">0.0</span>s</small>
         </div>
     </div>
 
-    <!-- FILE MANAGEMENT -->
-    <div class="panel">
-        <h2>Files</h2>
+    <!-- FILE LIST -->
+    <div class="card p-3 mb-3">
+        <h6>Recordings</h6>
+        <select id="fileSelect" class="form-select mb-2"></select>
 
-        <input id="newName" placeholder="New filename">
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-light btn-sm w-50" onclick="renameFile()">Rename</button>
+            <button class="btn btn-outline-danger btn-sm w-50" onclick="deleteFile()">Delete</button>
+        </div>
+    </div>
 
-        <div class="file-actions">
-            <button onclick="renameFile()">✏ Rename</button>
-            <button class="danger" onclick="deleteFile()">🗑 Delete</button>
+    <!-- PLAYER -->
+    <div class="card p-3">
+        <h6>Playback</h6>
+
+        <input type="range" min="0" max="100" value="0" id="slider" class="range-slider mb-2">
+
+        <div class="d-flex justify-content-center gap-2">
+
+            <button class="btn btn-secondary" onclick="seekRelative(-10)">« 10s</button>
+            <button class="btn btn-primary" onclick="playPause()">Play</button>
+            <button class="btn btn-secondary" onclick="seekRelative(10)">10s »</button>
+
         </div>
     </div>
 
 </div>
 
+<!-- BOTTOM RECORD CONTROLS -->
+<div class="bottom-controls text-center">
+
+    <div class="d-flex gap-2">
+        <button id="recBtn" class="btn btn-danger btn-lg w-50" onclick="startRecording()">Start REC</button>
+        <button class="btn btn-dark btn-lg w-50" onclick="stopRecording()">Stop</button>
+    </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+
 <script>
-    let dragging = false;
+    let isRecording = false
+    let isPlaying = false
 
-    function fmt(sec){
-        sec = Math.floor(sec || 0);
-        return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0");
-    }
+    async function refreshStatus() {
+        const res = await fetch('/status')
+        const data = await res.json()
 
-    async function refresh(){
-        const r = await fetch("/status");
-        const s = await r.json();
+        document.getElementById("time").innerText = data.position.toFixed(1)
 
-        const st = document.getElementById("x32status");
-        if (s.x32) {
-            st.textContent = "X32 connected";
-            st.className = "status ok";
+        // X32 badge
+        const badge = document.getElementById("x32Badge")
+        if (data.x32_connected) {
+            badge.className = "badge bg-success status-badge"
+            badge.innerText = "X32 Connected"
         } else {
-            st.textContent = "X32 NOT connected";
-            st.className = "status bad";
+            badge.className = "badge bg-danger status-badge"
+            badge.innerText = "X32 Not Connected"
         }
 
-        const sel = document.getElementById("files");
-        const cur = sel.value;
-        sel.innerHTML = "";
-        s.files.forEach(f=>{
-            let o = document.createElement("option");
-            o.value = o.text = f;
-            sel.add(o);
-        });
-        if (s.files.includes(cur)) sel.value = cur;
-
-        const seek = document.getElementById("seek");
-        seek.max = s.duration || 0;
-        if (!dragging) seek.value = s.position || 0;
-
-        document.getElementById("pos").textContent = fmt(s.position);
-        document.getElementById("dur").textContent = fmt(s.duration);
-    }
-
-    setInterval(refresh, 500);
-
-    document.getElementById("seek").addEventListener("pointerdown",()=>dragging=true);
-    document.getElementById("seek").addEventListener("pointerup",async e=>{
-        dragging=false;
-        await fetch("/play/seek",{
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({pos:e.target.value})
-        });
-    });
-
-    async function recStart(){
-        const s = await (await fetch("/status")).json();
-        if (!s.x32) {
-            alert("X32 is not connected");
-            return;
+        // Recording indicator
+        const recIndicator = document.getElementById("recIndicatorContainer")
+        if (data.recording) {
+            recIndicator.classList.remove("d-none")
+            isRecording = true
+        } else {
+            recIndicator.classList.add("d-none")
+            isRecording = false
         }
-        await fetch("/record/start",{
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({name:recName.value})
-        });
+
+        isPlaying = data.playing
     }
 
-    async function recStop(){
-        await fetch("/record/stop",{method:"POST"});
-    }
+    setInterval(refreshStatus, 1000)
+    refreshStatus()
 
-    async function play(){
-        const s = await (await fetch("/status")).json();
-        if (s.recording) {
-            if (!confirm("Recording in progress. Stop it?")) return;
-            await recStop();
+    async function startRecording() {
+
+        const status = await fetch('/status').then(r => r.json())
+
+        if (!status.x32_connected) {
+            alert("X32 not connected!")
+            return
         }
-        await fetch("/play/start",{
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({file:files.value})
-        });
+
+        await fetch('/record/start', {method: "POST"})
     }
 
-    async function stop(){
-        await fetch("/play/stop",{method:"POST"});
+    async function stopRecording() {
+        await fetch('/record/stop', {method: "POST"})
     }
 
-    async function renameFile(){
-        if (!files.value || !newName.value) return;
-        await fetch("/file/rename",{
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({old:files.value,new:newName.value})
-        });
-        newName.value="";
+    async function playPause() {
+
+        if (isRecording) {
+            if (!confirm("Recording in progress. Stop recording?"))
+                return
+            await fetch('/record/stop', {method: "POST"})
+        }
+
+        if (!isPlaying) {
+            const file = document.getElementById("fileSelect").value
+            await fetch('/play/start', {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({file: file})
+            })
+        } else {
+            await fetch('/play/stop', {method: "POST"})
+        }
     }
 
-    async function deleteFile(){
-        if (!files.value) return;
-        if (!confirm("Delete "+files.value+"?")) return;
-        await fetch("/file/delete",{
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({file:files.value})
-        });
+    async function seekRelative(sec) {
+        const slider = document.getElementById("slider")
+        const pos = parseFloat(slider.value) + sec
+        await fetch('/play/seek', {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({pos: pos})
+        })
+    }
+
+    async function renameFile() {
+        const file = document.getElementById("fileSelect").value
+        const newName = prompt("New name:", file)
+        if (!newName) return
+
+        await fetch('/file/rename', {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({old: file, new: newName})
+        })
+    }
+
+    async function deleteFile() {
+        const file = document.getElementById("fileSelect").value
+        if (!confirm("Delete file?")) return
+
+        await fetch('/file/delete', {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({file: file})
+        })
     }
 </script>
 
