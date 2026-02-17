@@ -126,8 +126,8 @@
 <div class="bottom-controls text-center">
 
     <div class="d-flex gap-2">
-        <button id="recBtn" class="btn btn-danger btn-lg w-50" onclick="startRecording()">Start REC</button>
-        <button class="btn btn-dark btn-lg w-50" onclick="stopRecording()">Stop</button>
+        <button id="recBtn" class="btn btn-danger btn-lg w-50" type="button" onclick="startRecording()">Start REC</button>
+        <button class="btn btn-dark btn-lg w-50" type="button" onclick="stopRecording()">Stop</button>
     </div>
 
 </div>
@@ -179,7 +179,7 @@
             return
         }
 
-        await fetch('/record/start', {method: "POST"})
+        await fetch('/record/start', {method: "POST", headers:{"Content-Type": "application/json"}})
     }
 
     async function stopRecording() {
