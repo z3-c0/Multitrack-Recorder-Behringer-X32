@@ -12,11 +12,13 @@ class AudioEngine:
             device="hw:XUSB",
             recordings_dir="recordings",
             channels=16,
-            sample_rate=48000
+            sample_rate=48000,
+            codec="pcm_s32le"
     ):
         self.device = device
         self.channels = channels
         self.sample_rate = sample_rate
+        self.codec = codec
 
         self.recordings_dir = Path(recordings_dir)
         self.recordings_dir.mkdir(parents=True, exist_ok=True)
@@ -83,6 +85,7 @@ class AudioEngine:
             "ffmpeg",
             "-loglevel", "error",
             "-f", "alsa",
+            "-acodec", self.codec,
             "-ac", str(self.channels),
             "-ar", str(self.sample_rate),
             "-i", self.device,
@@ -129,6 +132,7 @@ class AudioEngine:
             "-i", str(path),
             "-ac", str(self.channels),
             "-ar", str(self.sample_rate),
+            "-acodec", self.codec
             "-f", "alsa",
             self.device
         ]
