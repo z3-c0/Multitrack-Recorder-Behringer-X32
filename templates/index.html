@@ -146,7 +146,7 @@
 
         // X32 badge
         const badge = document.getElementById("x32Badge")
-        if (data.x32_connected) {
+        if (data.x32) {
             badge.className = "badge bg-success status-badge"
             badge.innerText = "X32 Connected"
         } else {
@@ -174,7 +174,7 @@
 
         const status = await fetch('/status').then(r => r.json())
 
-        if (!status.x32_connected) {
+        if (!status.x32) {
             alert("X32 not connected!")
             return
         }
