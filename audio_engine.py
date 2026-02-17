@@ -132,7 +132,7 @@ class AudioEngine:
             "-i", str(path),
             "-ac", str(self.channels),
             "-ar", str(self.sample_rate),
-            "-acodec", self.codec
+            "-acodec", self.codec,
             "-f", "alsa",
             self.device
         ]

@@ -8,57 +8,162 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 
     <style>
+        :root {
+            --bg: #121417;
+            --panel: #1b1f24;
+            --panel-2: #232931;
+            --accent: #4da3ff;
+            --accent-2: #2d7dd2;
+            --text: #e6e9ed;
+            --text-dim: #9aa4af;
+            --danger: #ff5c5c;
+            --ok: #3ddc84;
+            --border: #2f3842;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
         body {
-            background: #111;
-            color: #eee;
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: .5px;
+        }
+
+        .header {
+            padding: 16px;
+            background: #0f1216;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status {
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .connected { color: var(--ok); }
+        .disconnected { color: var(--danger); }
+
+        .container {
+            padding: 16px;
+            display: grid;
+            gap: 16px;
         }
 
         .card {
-            background: #1c1c1c;
-            border: none;
-            border-radius: 16px;
-        }
-
-        .btn-lg {
+            background: var(--panel);
+            border: 1px solid var(--border);
             border-radius: 12px;
+            padding: 16px;
         }
 
-        .rec-indicator {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: red;
-            display: inline-block;
-            margin-right: 6px;
-            animation: blink 1s infinite;
+        .card h2 {
+            margin-top: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-dim);
+            margin-bottom: 12px;
         }
 
-        @keyframes blink {
-            0% { opacity: 1; }
-            50% { opacity: 0.1; }
-            100% { opacity: 1; }
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: .15s;
         }
 
-        .bottom-controls {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #1a1a1a;
-            padding: 10px;
-            border-top: 1px solid #333;
+        button:hover {
+            background: var(--accent-2);
         }
 
-        .content-padding {
-            padding-bottom: 140px;
+        button.secondary {
+            background: var(--panel-2);
+            color: var(--text);
         }
 
-        .range-slider {
+        button.danger {
+            background: var(--danger);
+        }
+
+        input, select {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .time {
+            font-size: 26px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .slider {
+            width: 100%;
+            margin: 12px 0;
+        }
+
+        input[type=range] {
             width: 100%;
         }
 
-        .status-badge {
-            font-size: 0.85rem;
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .file {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .file:last-child {
+            border-bottom: none;
+        }
+
+        .file-name {
+            color: var(--text);
+        }
+
+        .file-actions button {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 18px; }
+            .time { font-size: 22px; }
         }
     </style>
 </head>
@@ -154,6 +259,15 @@
             badge.innerText = "X32 Not Connected"
         }
 
+        // File list
+        const select = document.getElementById("fileSelect")
+        select.innerHTML = ""  // очищаем старые опции
+        for (const f of data.files) {
+            const opt = document.createElement("option")
+            opt.value = f
+            opt.textContent = f
+            select.appendChild(opt)
+        }
         // Recording indicator
         const recIndicator = document.getElementById("recIndicatorContainer")
         if (data.recording) {
