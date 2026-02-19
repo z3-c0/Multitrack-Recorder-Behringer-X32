@@ -291,8 +291,21 @@
             socket.emit("play", {file: fileSelect.value});
     }
 
-    document.getElementById("seekbar").addEventListener("input", e => {
-        socket.emit("seek", {pos: e.target.value});
+    const seekbar = document.getElementById("seekbar");
+
+    let isSeeking = false;
+    
+    seekbar.addEventListener("mousedown", () => isSeeking = true);
+    seekbar.addEventListener("touchstart", () => isSeeking = true);
+    
+    seekbar.addEventListener("mouseup", () => {
+        socket.emit("seek", {pos: seekbar.value});
+        isSeeking = false;
+    });
+    
+    seekbar.addEventListener("touchend", () => {
+        socket.emit("seek", {pos: seekbar.value});
+        isSeeking = false;
     });
     
     function formatTime(sec) {
@@ -305,6 +318,3 @@
 
 </body>
 </html>
-
-
-}
