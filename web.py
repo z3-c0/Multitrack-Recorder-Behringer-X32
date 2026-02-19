@@ -28,7 +28,7 @@ def recordings(filename):
 def handle_connect():
     emit_status()
     emit_file_list()
-
+    socketio.start_background_task(background_status_thread)
 
 @socketio.on("start_record")
 def start_record():
@@ -44,6 +44,10 @@ def stop_record():
     emit_status()
     emit_file_list()
 
+def record_time(self):
+    if not self.rec_proc:
+        return 0.0
+    return time.time() - self.rec_start
 
 @socketio.on("play")
 def play(data):
@@ -57,18 +61,20 @@ def play(data):
 def stop_play():
     engine.stop()
     emit_status()
+  
+@socketio.on("seek")
+def seek(data):
+    engine.seek(float(data["pos"]))
 
-
-@socketio.on("rename")
 @socketio.on("rename")
 def rename(data):
     try:
-        os.rename(
-            safe_path(data["old"]),
-            safe_path(data["new"])
-        )
+        engine.rename_file(data["old"], data["new"])
+        emit_file_list()
+        emit_status()
     except Exception as e:
-        emit("app_error", {"message": str(e)})
+        emit("app_error", {"msg": str(e)})
+
 
 
 @socketio.on("delete")
@@ -93,6 +99,10 @@ def emit_file_list():
     files = sorted(os.listdir(RECORDINGS_DIR))
     socketio.emit("files", files)
 
+def background_status_thread():
+    while True:
+        socketio.emit("status", engine.status())
+        socketio.sleep(0.5)
 
 # ---------- RUN ----------
 if __name__ == "__main__":
