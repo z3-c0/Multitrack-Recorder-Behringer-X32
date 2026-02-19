@@ -66,7 +66,11 @@ class AudioEngine:
         return sorted(f.name for f in self.recordings_dir.glob("*.wav"))
 
     # ---------- RECORD ----------
-
+    def record_time(self):
+        if not self.rec_proc:
+            return 0.0
+        return time.time() - self.rec_start
+        
     def start_record(self, filename=None):
         if self.rec_proc:
             raise RuntimeError("Recording already running")
@@ -210,6 +214,7 @@ class AudioEngine:
             "x32": self.is_x32_connected(),
             "recording": self.rec_proc is not None,
             "recording_file": self.rec_file,
+            "record_time": self.record_time(),
             "playing": self.play_proc is not None,
             "file": self.play_file,
             "position": self.position(),
