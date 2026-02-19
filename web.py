@@ -32,7 +32,6 @@ def recordings(filename):
 def handle_connect():
     emit_status()
     emit_file_list()
-    socketio.start_background_task(background_status_thread)
 
 @socketio.on("start_record")
 def start_record():
