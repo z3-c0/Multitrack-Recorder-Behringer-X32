@@ -3,356 +3,240 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>X32 Multitrack Recorder</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <title>X32 Recorder</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <style>
-        :root {
-            --bg: #121417;
-            --panel: #1b1f24;
-            --panel-2: #232931;
-            --accent: #4da3ff;
-            --accent-2: #2d7dd2;
-            --text: #e6e9ed;
-            --text-dim: #9aa4af;
-            --danger: #ff5c5c;
-            --ok: #3ddc84;
-            --border: #2f3842;
-        }
-
-        * {
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
         body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--text);
+            background: #0f172a;
+            color: #ffffff;
         }
-
-        h1 {
-            margin: 0;
-            font-size: 22px;
-            font-weight: 600;
-            letter-spacing: .5px;
-        }
-
-        .header {
-            padding: 16px;
-            background: #0f1216;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .status {
-            font-size: 14px;
-            color: var(--text-dim);
-        }
-
-        .connected { color: var(--ok); }
-        .disconnected { color: var(--danger); }
-
-        .container {
-            padding: 16px;
-            display: grid;
-            gap: 16px;
-        }
-
         .card {
-            background: var(--panel);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-        }
-
-        .card h2 {
-            margin-top: 0;
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text-dim);
-            margin-bottom: 12px;
-        }
-
-        button {
-            background: var(--accent);
-            color: white;
+            background: #1f2937;
             border: none;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: .15s;
+            border-radius: 14px;
         }
-
-        button:hover {
-            background: var(--accent-2);
-        }
-
-        button.secondary {
-            background: var(--panel-2);
-            color: var(--text);
-        }
-
-        button.danger {
-            background: var(--danger);
-        }
-
-        input, select {
-            background: var(--panel-2);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 8px;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .row {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .time {
-            font-size: 26px;
-            font-weight: 600;
-            letter-spacing: 1px;
-        }
-
-        .slider {
+        .action-btn {
             width: 100%;
-            margin: 12px 0;
+            height: 50px;
+        }
+        h3, h5 {
+            color: #ffffff;
         }
 
-        input[type=range] {
+        .action-btn {
             width: 100%;
+            height: 52px;
+            font-weight: 500;
         }
-
-        .file-list {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-        }
-
-        .file {
-            padding: 8px 10px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 14px;
-        }
-
-        .file:last-child {
-            border-bottom: none;
-        }
-
-        .file-name {
-            color: var(--text);
-        }
-
-        .file-actions button {
-            padding: 4px 8px;
-            font-size: 12px;
-        }
-
-        @media (max-width: 600px) {
-            h1 { font-size: 18px; }
-            .time { font-size: 22px; }
+        #status {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 500;
+            line-height: 1.6;
         }
     </style>
 </head>
 
 <body>
+<div class="container py-4">
 
-<div class="container py-3 content-padding">
+    <h3 class="mb-4">🎛 X32 Recorder</h3>
 
-    <h4 class="text-center mb-3">X32 Multitrack Recorder</h4>
+    <!-- STATUS -->
+    <div class="card p-3 mb-4">
+        <div id="status">Connecting...</div>
+    </div>
 
-    <!-- STATUS CARD -->
-    <div class="card p-3 mb-3">
-        <div class="d-flex justify-content-between align-items-center">
+    <!-- RECORDING -->
+    <div class="card p-3 mb-4">
+        <h5>Recording</h5>
 
-            <div>
-                <strong>Status:</strong>
-                <span id="statusText">Loading...</span>
+        <div class="row g-3 mt-1">
+            <div class="col-6">
+                <button class="btn btn-danger action-btn" onclick="startRecord()">
+                    Record
+                </button>
             </div>
-
-            <div>
-                <span id="x32Badge" class="badge bg-secondary status-badge">Checking...</span>
+            <div class="col-6">
+                <button class="btn btn-secondary action-btn" onclick="stopRecord()">
+                    Stop
+                </button>
             </div>
-
-        </div>
-
-        <div id="recIndicatorContainer" class="mt-2 d-none">
-            <span class="rec-indicator"></span>
-            <strong>RECORDING</strong>
-        </div>
-
-        <div class="mt-2">
-            <small>Time: <span id="time">0.0</span>s</small>
         </div>
     </div>
 
-    <!-- FILE LIST -->
-    <div class="card p-3 mb-3">
-        <h6>Recordings</h6>
-        <select id="fileSelect" class="form-select mb-2"></select>
-
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-light btn-sm w-50" onclick="renameFile()">Rename</button>
-            <button class="btn btn-outline-danger btn-sm w-50" onclick="deleteFile()">Delete</button>
-        </div>
-    </div>
-
-    <!-- PLAYER -->
+    <!-- PLAYBACK + MANAGE -->
     <div class="card p-3">
-        <h6>Playback</h6>
+        <h5>Playback & File Management</h5>
 
-        <input type="range" min="0" max="100" value="0" id="slider" class="range-slider mb-2">
+        <select id="fileSelect" class="form-select mb-3"></select>
 
-        <div class="d-flex justify-content-center gap-2">
+        <input type="range" class="form-range mb-4" id="seekbar" value="0">
 
-            <button class="btn btn-secondary" onclick="seekRelative(-10)">« 10s</button>
-            <button class="btn btn-primary" onclick="playPause()">Play</button>
-            <button class="btn btn-secondary" onclick="seekRelative(10)">10s »</button>
-
+        <div class="row g-3">
+            <div class="col-6">
+                <button class="btn btn-success action-btn" onclick="play()">Play</button>
+            </div>
+            <div class="col-6">
+                <button class="btn btn-secondary action-btn" onclick="stopPlay()">Stop</button>
+            </div>
+            <div class="col-6">
+                <button class="btn btn-warning action-btn" data-bs-toggle="modal" data-bs-target="#renameModal">
+                    Rename
+                </button>
+            </div>
+            <div class="col-6">
+                <button class="btn btn-outline-danger action-btn" onclick="deleteFile()">
+                    Delete
+                </button>
+            </div>
         </div>
     </div>
 
 </div>
 
-<!-- BOTTOM RECORD CONTROLS -->
-<div class="bottom-controls text-center">
-
-    <div class="d-flex gap-2">
-        <button id="recBtn" class="btn btn-danger btn-lg w-50" type="button" onclick="startRecording()">Start REC</button>
-        <button class="btn btn-dark btn-lg w-50" type="button" onclick="stopRecording()">Stop</button>
+<!-- RENAME MODAL -->
+<div class="modal fade" id="renameModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">Rename File</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input id="renameInput" class="form-control" placeholder="New filename">
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="confirmRename()">Rename</button>
+            </div>
+        </div>
     </div>
-
 </div>
 
-<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+
+
+<!-- ERROR MODAL -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-danger">Error</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage"></p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
 
 <script>
-    let isRecording = false
-    let isPlaying = false
+    const socket = io();
+    const statusDiv = document.getElementById("status");
+    const fileSelect = document.getElementById("fileSelect");
+    const renameModal = new bootstrap.Modal(document.getElementById('renameModal'));
 
-    async function refreshStatus() {
-        const res = await fetch('/status')
-        const data = await res.json()
+    // ---------- SOCKET LISTENERS ----------
 
-        document.getElementById("time").innerText = data.position.toFixed(1)
+    socket.on("status", (data) => {
+        statusDiv.innerHTML =
+            "X32: " + (data.x32 ? "✅ Connected" : "❌ Not Found") +
+            "<br>Recording: " + (data.recording ? "● YES" : "—") +
+            "<br>Playing: " + (data.playing ? "▶ YES" : "—");
+    });
 
-        // X32 badge
-        const badge = document.getElementById("x32Badge")
-        if (data.x32) {
-            badge.className = "badge bg-success status-badge"
-            badge.innerText = "X32 Connected"
-        } else {
-            badge.className = "badge bg-danger status-badge"
-            badge.innerText = "X32 Not Connected"
-        }
+    socket.on("files", (files) => {
+        const current = fileSelect.value;
+        fileSelect.innerHTML = "";
 
-        // File list
-        const select = document.getElementById("fileSelect")
-        select.innerHTML = ""  // очищаем старые опции
-        for (const f of data.files) {
-            const opt = document.createElement("option")
-            opt.value = f
-            opt.textContent = f
-            select.appendChild(opt)
-        }
-        // Recording indicator
-        const recIndicator = document.getElementById("recIndicatorContainer")
-        if (data.recording) {
-            recIndicator.classList.remove("d-none")
-            isRecording = true
-        } else {
-            recIndicator.classList.add("d-none")
-            isRecording = false
-        }
+        files.forEach(f => {
+            const opt = document.createElement("option");
+            opt.value = f;
+            opt.text = f;
+            fileSelect.appendChild(opt);
+        });
 
-        isPlaying = data.playing
+        if (files.includes(current)) fileSelect.value = current;
+    });
+
+    // ---------- ACTIONS ----------
+
+    function startRecord() {
+        socket.emit("start_record");
     }
 
-    setInterval(refreshStatus, 1000)
-    refreshStatus()
-
-    async function startRecording() {
-
-        const status = await fetch('/status').then(r => r.json())
-
-        if (!status.x32) {
-            alert("X32 not connected!")
-            return
-        }
-
-        await fetch('/record/start', {method: "POST", headers:{"Content-Type": "application/json"}})
+    function stopRecord() {
+        socket.emit("stop_record");
     }
 
-    async function stopRecording() {
-        await fetch('/record/stop', {method: "POST"})
+    function play() {
+        socket.emit("play", {file: fileSelect.value});
     }
 
-    async function playPause() {
-
-        if (isRecording) {
-            if (!confirm("Recording in progress. Stop recording?"))
-                return
-            await fetch('/record/stop', {method: "POST"})
-        }
-
-        if (!isPlaying) {
-            const file = document.getElementById("fileSelect").value
-            await fetch('/play/start', {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({file: file})
-            })
-        } else {
-            await fetch('/play/stop', {method: "POST"})
-        }
+    function stopPlay() {
+        socket.emit("stop_play");
     }
 
-    async function seekRelative(sec) {
-        const slider = document.getElementById("slider")
-        const pos = parseFloat(slider.value) + sec
-        await fetch('/play/seek', {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({pos: pos})
-        })
+    function confirmRename() {
+        const newName = document.getElementById("renameInput").value;
+        if (!newName) return;
+
+        socket.emit("rename", {
+            old: fileSelect.value,
+            new: newName
+        });
+
+        document.getElementById("renameInput").value = "";
+        renameModal.hide();
     }
 
-    async function renameFile() {
-        const file = document.getElementById("fileSelect").value
-        const newName = prompt("New name:", file)
-        if (!newName) return
+    function deleteFile() {
+        if (!confirm("Delete file?")) return;
 
-        await fetch('/file/rename', {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({old: file, new: newName})
-        })
+        socket.emit("delete", {
+            file: fileSelect.value
+        });
     }
 
-    async function deleteFile() {
-        const file = document.getElementById("fileSelect").value
-        if (!confirm("Delete file?")) return
+    // ------------ ERROR ACTIONS -----------
 
-        await fetch('/file/delete', {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({file: file})
-        })
+
+    const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+    const errorMessage = document.getElementById('errorMessage');
+
+    socket.on("app_error", (data) => {
+        console.log(' ERROR received:', data);
+        showErrorModal(data.msg);
+    });
+
+    function showErrorModal(message) {
+        errorMessage.textContent = message;
+        errorModal.show();
     }
 </script>
 
 </body>
 </html>
+
+
+}
