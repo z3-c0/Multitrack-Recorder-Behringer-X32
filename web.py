@@ -5,9 +5,13 @@ from audio_engine import AudioEngine
 RECORDINGS_DIR = "recordings"
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
+
+
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading"
                     )
+playback_thread = None
+playback_running = False
 
 engine = AudioEngine(RECORDINGS_DIR)
 
@@ -49,22 +53,56 @@ def record_time(self):
         return 0.0
     return time.time() - self.rec_start
 
+def playback_position_worker():
+    global playback_running
+
+    while playback_running:
+        if engine.play_proc:
+            socketio.emit("position", {
+                "position": engine.position(),
+                "duration": engine.duration
+            })
+        socketio.sleep(0.25)
+
 @socketio.on("play")
 def play(data):
+    global playback_thread, playback_running
+
     try:
         engine.play(data["file"])
+
+        playback_running = True
+        playback_thread = socketio.start_background_task(playback_position_worker)
+
         emit_status()
+
     except Exception as e:
         emit("app_error", {"msg": str(e)})
 
+
 @socketio.on("stop_play")
 def stop_play():
+    global playback_running
+
+    playback_running = False
     engine.stop()
+
     emit_status()
   
 @socketio.on("seek")
-def seek(data):
-    engine.seek(float(data["pos"]))
+def seek(self, seconds):
+    self.play(self.play_file, offset=seconds)
+
+@socketio.on("pause_play")
+def pause_play():
+    engine.pause()
+    emit_status()
+
+@socketio.on("resume_play")
+def resume_play():
+    engine.resume()
+    emit_status()
+
 
 @socketio.on("rename")
 def rename(data):
@@ -99,10 +137,7 @@ def emit_file_list():
     files = sorted(os.listdir(RECORDINGS_DIR))
     socketio.emit("files", files)
 
-def background_status_thread():
-    while True:
-        socketio.emit("status", engine.status())
-        socketio.sleep(0.5)
+
 
 # ---------- RUN ----------
 if __name__ == "__main__":
