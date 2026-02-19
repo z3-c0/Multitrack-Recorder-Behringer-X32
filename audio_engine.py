@@ -9,8 +9,8 @@ from datetime import datetime
 class AudioEngine:
     def __init__(
             self,
-            device="hw:XUSB",
             recordings_dir="recordings",
+            device="hw:XUSB",
             channels=16,
             sample_rate=48000,
             codec="pcm_s32le"
@@ -147,6 +147,17 @@ class AudioEngine:
         self.play_offset = offset
         self.paused = False
 
+
+    def pause(self):
+        if self.play_proc and not self.paused:
+            self.play_proc.send_signal(signal.SIGSTOP)
+            self.paused = True
+    
+    def resume(self):
+        if self.play_proc and self.paused:
+            self.play_proc.send_signal(signal.SIGCONT)
+            self.paused = False
+    
     def stop(self):
         if not self.play_proc:
             return
