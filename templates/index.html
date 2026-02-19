@@ -156,6 +156,10 @@
 
 <script>
     const socket = io();
+    let recording = false;
+    let playing = false;
+    let duration = 0;
+    let position = 0;
     const statusDiv = document.getElementById("status");
     const fileSelect = document.getElementById("fileSelect");
     const renameModal = new bootstrap.Modal(document.getElementById('renameModal'));
@@ -164,8 +168,10 @@
 
     socket.on("status", (data) => {
 
-        recording = data.recording;
-        playing = data.playing;
+        recording = !!data.recording;
+        playing = !!data.playing;
+        duration = data.duration || 0;
+        position = data.position || 0;
     
         statusDiv.innerHTML =
             "X32: " + (data.x32 ? "✅ Connected" : "❌ Not Found");
@@ -200,7 +206,7 @@
         // ---- SEEK BAR ----
         const seek = document.getElementById("seekbar");
     
-        if (data.duration > 0) {
+        if (!isSeeking && data.duration > 0) {
             seek.max = data.duration;
             seek.value = data.position;
         }
@@ -208,7 +214,19 @@
         document.getElementById("curTime").innerText = formatTime(data.position);
         document.getElementById("durTime").innerText = formatTime(data.duration);
     });
-
+    socket.on("position", (data) => {
+        if (isSeeking) return;
+    
+        position = data.position;
+        duration = data.duration;
+    
+        seekbar.max = duration;
+        seekbar.value = position;
+    
+        document.getElementById("curTime").innerText = formatTime(position);
+        document.getElementById("durTime").innerText = formatTime(duration);
+    });
+    
     socket.on("files", (files) => {
         const current = fileSelect.value;
         fileSelect.innerHTML = "";
@@ -225,16 +243,18 @@
 
     // ---------- ACTIONS ----------
 
-    function startRecord() {
-        socket.emit("start_record");
+    function toggleRecord() {
+        if (recording)
+            socket.emit("stop_record");
+        else
+            socket.emit("start_record");
     }
-
-    function stopRecord() {
-        socket.emit("stop_record");
-    }
-
-    function play() {
-        socket.emit("play", {file: fileSelect.value});
+    
+    function togglePlay() {
+        if (playing)
+            socket.emit("stop_play");
+        else
+            socket.emit("play", {file: fileSelect.value});
     }
 
     function stopPlay() {
