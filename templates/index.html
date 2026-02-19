@@ -57,15 +57,14 @@
         <h5>Recording</h5>
 
         <div class="row g-3 mt-1">
-            <div class="col-6">
-                <button class="btn btn-danger action-btn" onclick="startRecord()">
-                    Record
+            <div class="col-12">
+                <button id="recordBtn" class="btn btn-danger action-btn" onclick="toggleRecord()">
+                    ● Record
                 </button>
             </div>
-            <div class="col-6">
-                <button class="btn btn-secondary action-btn" onclick="stopRecord()">
-                    Stop
-                </button>
+
+            <div class="mt-3">
+                <small>Time: <span id="recTime">0.0</span>s</small>
             </div>
         </div>
     </div>
@@ -76,14 +75,19 @@
 
         <select id="fileSelect" class="form-select mb-3"></select>
 
-        <input type="range" class="form-range mb-4" id="seekbar" value="0">
+        <div class="d-flex justify-content-between">
+            <small id="curTime">0:00</small>
+            <small id="durTime">0:00</small>
+        </div>
+        
+        <input type="range" class="form-range mb-3" id="seekbar" min="0" max="100" value="0">
 
         <div class="row g-3">
             <div class="col-6">
-                <button class="btn btn-success action-btn" onclick="play()">Play</button>
+                <button id="playBtn" class="btn btn-success action-btn" onclick="togglePlay()">▶ Play</button>
             </div>
             <div class="col-6">
-                <button class="btn btn-secondary action-btn" onclick="stopPlay()">Stop</button>
+                <button class="btn btn-secondary action-btn" onclick="stopPlay()">■ Stop</button>
             </div>
             <div class="col-6">
                 <button class="btn btn-warning action-btn" data-bs-toggle="modal" data-bs-target="#renameModal">
@@ -159,10 +163,50 @@
     // ---------- SOCKET LISTENERS ----------
 
     socket.on("status", (data) => {
+
+        recording = data.recording;
+        playing = data.playing;
+    
         statusDiv.innerHTML =
-            "X32: " + (data.x32 ? "✅ Connected" : "❌ Not Found") +
-            "<br>Recording: " + (data.recording ? "● YES" : "—") +
-            "<br>Playing: " + (data.playing ? "▶ YES" : "—");
+            "X32: " + (data.x32 ? "✅ Connected" : "❌ Not Found");
+    
+        // ---- RECORD BUTTON ----
+        const recBtn = document.getElementById("recordBtn");
+        if (recording) {
+            recBtn.classList.remove("btn-danger");
+            recBtn.classList.add("btn-dark");
+            recBtn.innerText = "■ Stop Recording";
+        } else {
+            recBtn.classList.add("btn-danger");
+            recBtn.classList.remove("btn-dark");
+            recBtn.innerText = "● Record";
+        }
+    
+        document.getElementById("recTime").innerText =
+            (data.record_time || 0).toFixed(1);
+    
+        // ---- PLAY BUTTON ----
+        const playBtn = document.getElementById("playBtn");
+        if (playing) {
+            playBtn.classList.remove("btn-success");
+            playBtn.classList.add("btn-warning");
+            playBtn.innerText = "⏸ Pause";
+        } else {
+            playBtn.classList.add("btn-success");
+            playBtn.classList.remove("btn-warning");
+            playBtn.innerText = "▶ Play";
+        }
+    
+        // ---- SEEK BAR ----
+        const seek = document.getElementById("seekbar");
+    
+        if (data.duration > 0) {
+            seek.max = data.duration;
+            seek.value = data.position;
+        }
+    
+        document.getElementById("curTime").innerText = formatTime(data.position);
+        document.getElementById("durTime").innerText = formatTime(data.duration);
     });
 
     socket.on("files", (files) => {
@@ -232,6 +276,30 @@
     function showErrorModal(message) {
         errorMessage.textContent = message;
         errorModal.show();
+    }
+    function toggleRecord() {
+        if (recording)
+            socket.emit("stop_record");
+        else
+            socket.emit("start_record");
+    }
+
+    function togglePlay() {
+        if (playing)
+            socket.emit("stop_play");
+        else
+            socket.emit("play", {file: fileSelect.value});
+    }
+
+    document.getElementById("seekbar").addEventListener("input", e => {
+        socket.emit("seek", {pos: e.target.value});
+    });
+    
+    function formatTime(sec) {
+        sec = Math.floor(sec || 0);
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${m}:${s.toString().padStart(2,"0")}`;
     }
 </script>
 
