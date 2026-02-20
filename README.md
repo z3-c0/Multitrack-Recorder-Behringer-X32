@@ -1,5 +1,8 @@
 # Multitrack Recorder for Behringer X32
 
+This project is still in development so may not work as expected.  
+Inspired by https://github.com/jajito/X32-Recorder/tree/main
+
 **Multitrack-Recorder-Behringer-X32** is a Python-based wrapper around FFmpeg for Linux.  
 It allows recording and playback of 16-channel audio from a Behringer X32 (or any other console acting as a multichannel audio interface) with a simple **Web UI** by Flask.
 
@@ -17,3 +20,4 @@ This project was primarily created to enable devices like **Odroid** or **Raspbe
 
 ## To start
 Run web.py and open `http://<device_ip>:5000` in browser
+
