@@ -160,6 +160,8 @@
     let playing = false;
     let duration = 0;
     let position = 0;
+    let paused = false;
+    const seekbar = document.getElementById("seekbar");
     const statusDiv = document.getElementById("status");
     const fileSelect = document.getElementById("fileSelect");
     const renameModal = new bootstrap.Modal(document.getElementById('renameModal'));
@@ -167,7 +169,7 @@
     // ---------- SOCKET LISTENERS ----------
 
     socket.on("status", (data) => {
-
+        pased = !!data.paused;
         recording = !!data.recording;
         playing = !!data.playing;
         duration = data.duration || 0;
@@ -194,9 +196,15 @@
         // ---- PLAY BUTTON ----
         const playBtn = document.getElementById("playBtn");
         if (playing) {
-            playBtn.classList.remove("btn-success");
-            playBtn.classList.add("btn-warning");
-            playBtn.innerText = "⏸ Pause";
+            if (data.paused) {
+                playBtn.classList.remove("btn-warning");
+                playBtn.classList.add("btn-success");
+                playBtn.innerText = "▶ Resume";
+            } else {
+                playBtn.classList.remove("btn-success");
+                playBtn.classList.add("btn-warning");
+                playBtn.innerText = "⏸ Pause";
+            }
         } else {
             playBtn.classList.add("btn-success");
             playBtn.classList.remove("btn-warning");
@@ -243,18 +251,24 @@
 
     // ---------- ACTIONS ----------
 
+    socket.on("resume_required", () => {
+        socket.emit("resume_play");
+    });
+
     function toggleRecord() {
         if (recording)
             socket.emit("stop_record");
         else
             socket.emit("start_record");
     }
-    
     function togglePlay() {
-        if (playing)
-            socket.emit("stop_play");
-        else
+        if (!playing) {
             socket.emit("play", {file: fileSelect.value});
+        } else if (paused) {
+            socket.emit("pause_play"); // resume
+        } else {
+            socket.emit("pause_play"); // pause
+        }
     }
 
     function stopPlay() {
@@ -297,21 +311,7 @@
         errorMessage.textContent = message;
         errorModal.show();
     }
-    function toggleRecord() {
-        if (recording)
-            socket.emit("stop_record");
-        else
-            socket.emit("start_record");
-    }
 
-    function togglePlay() {
-        if (playing)
-            socket.emit("stop_play");
-        else
-            socket.emit("play", {file: fileSelect.value});
-    }
-
-    const seekbar = document.getElementById("seekbar");
 
     let isSeeking = false;
     

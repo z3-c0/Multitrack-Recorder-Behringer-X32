@@ -1,6 +1,7 @@
 import os
 from flask import Flask, render_template, send_from_directory
 from flask_socketio import SocketIO, emit
+from threading import Lock
 from audio_engine import AudioEngine
 RECORDINGS_DIR = "recordings"
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
@@ -12,6 +13,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading"
                     )
 playback_thread = None
 playback_running = False
+playback_lock = Lock()
 
 engine = AudioEngine(RECORDINGS_DIR)
 
@@ -25,7 +27,6 @@ def index():
 def recordings(filename):
     return send_from_directory(RECORDINGS_DIR, filename)
 
-
 # ---------- SOCKET EVENTS ----------
 
 @socketio.on("connect")
@@ -33,6 +34,10 @@ def handle_connect():
     emit_status()
     emit_file_list()
 
+@socketio.on("disconnect")
+def on_disconnect():
+    global playback_running
+    playback_running = False
 @socketio.on("start_record")
 def start_record():
     try:
@@ -47,11 +52,6 @@ def stop_record():
     emit_status()
     emit_file_list()
 
-def record_time(self):
-    if not self.rec_proc:
-        return 0.0
-    return time.time() - self.rec_start
-
 def playback_position_worker():
     global playback_running
 
@@ -61,6 +61,11 @@ def playback_position_worker():
                 "position": engine.position(),
                 "duration": engine.duration
             })
+        else:
+            playback_running = False
+            emit_status()
+            break
+
         socketio.sleep(0.25)
 
 @socketio.on("play")
@@ -69,9 +74,10 @@ def play(data):
 
     try:
         engine.play(data["file"])
-
-        playback_running = True
-        playback_thread = socketio.start_background_task(playback_position_worker)
+        with playback_lock:
+            if not playback_running:
+                playback_running = True
+                playback_thread = socketio.start_background_task(playback_position_worker)
 
         emit_status()
 
@@ -89,17 +95,20 @@ def stop_play():
     emit_status()
   
 @socketio.on("seek")
-def seek(self, seconds):
-    self.play(self.play_file, offset=seconds)
+def handle_seek(data):
+    try:
+        pos = float(data.get("pos", 0))
+        engine.seek(pos)
+    except Exception as e:
+        emit("app_error", {"msg": str(e)})
 
 @socketio.on("pause_play")
 def pause_play():
-    engine.pause()
-    emit_status()
+    if engine.paused:
+        engine.resume()
+    else:
+        engine.pause()
 
-@socketio.on("resume_play")
-def resume_play():
-    engine.resume()
     emit_status()
 
 
@@ -117,10 +126,11 @@ def rename(data):
 @socketio.on("delete")
 def delete(data):
     try:
-        os.remove(safe_path(data["file"]))
+        engine.delete_file(data["file"])
         emit_file_list()
+        emit_status()
     except Exception as e:
-        emit("app_error", {"message": str(e)})
+        emit("app_error", {"msg": str(e)})
 
 
 # ---------- HELPERS ----------

@@ -30,7 +30,7 @@ class AudioEngine:
         self.play_offset = 0.0
         self.duration = 0.0
         self.paused = False
-
+        self.pause_started = None
         # recording
         self.rec_proc = None
         self.rec_file = None
@@ -152,10 +152,16 @@ class AudioEngine:
         if self.play_proc and not self.paused:
             self.play_proc.send_signal(signal.SIGSTOP)
             self.paused = True
+            self.pause_started = time.time()
     
     def resume(self):
         if self.play_proc and self.paused:
             self.play_proc.send_signal(signal.SIGCONT)
+
+            if self.pause_started:
+                paused_time = time.time() - self.pause_started
+                self.play_start += paused_time
+            self.pause_started = None
             self.paused = False
     
     def stop(self):
@@ -171,11 +177,17 @@ class AudioEngine:
         self.play_offset = 0.0
         self.duration = 0.0
         self.paused = False
+        self.pause_started = None
 
     def seek(self, seconds):
         if not self.play_file:
             return
+
+        was_paused = self.paused
         self.play(self.play_file, offset=seconds)
+
+        if was_paused:
+            self.pause()
 
     def position(self):
         if not self.play_proc:
@@ -227,6 +239,7 @@ class AudioEngine:
             "recording_file": self.rec_file,
             "record_time": self.record_time(),
             "playing": self.play_proc is not None,
+            "paused": self.paused,
             "file": self.play_file,
             "position": self.position(),
             "duration": self.duration,
